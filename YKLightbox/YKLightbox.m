@@ -12,6 +12,7 @@
 @interface YKLightbox ()
 
 @property (nonatomic, strong) UIImageView *imageView;
+@property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, assign) CGPoint lastOrigin;
 @property (nonatomic, assign) CGPoint lastMove;
 @property (nonatomic, assign) CGFloat lastAngle;
@@ -26,15 +27,16 @@
 - (id)init {
     self = [super initWithFrame:[UIScreen mainScreen].bounds];
     if (self) {
-        UIPanGestureRecognizer *panGR = [[UIPanGestureRecognizer alloc] initWithTarget:self
-                                                                                action:@selector(gestureAction:)];
-        [self addGestureRecognizer:panGR];
-
-        _imageView = [[UIImageView alloc] initWithFrame:CGRectZero];
         _lastOrigin = CGPointZero;
         _lastMove = CGPointZero;
         _lastAngle = 0.0f;
         _startOrigin = CGPointZero;
+
+        UIPanGestureRecognizer *panGestureRecognizer = [[UIPanGestureRecognizer alloc]
+                                                        initWithTarget:self
+                                                        action:@selector(gestureAction:)];
+        panGestureRecognizer.maximumNumberOfTouches = 1;
+        [self addGestureRecognizer:panGestureRecognizer];
     }
     return self;
 }
@@ -44,16 +46,26 @@
     UIImageView *blurredScreenView = [[UIImageView alloc] initWithImage:blurredScreen];
     [self insertSubview:blurredScreenView atIndex:0];
     
+    _scrollView = [[UIScrollView alloc] initWithFrame:self.bounds];
+    _scrollView.delegate = self;
+    _scrollView.minimumZoomScale = 1.0f;
+    _scrollView.maximumZoomScale = 5.0f;
+    _scrollView.showsVerticalScrollIndicator = NO;
+    _scrollView.showsHorizontalScrollIndicator = NO;
+    [self addSubview:_scrollView];
+
     CGFloat imageViewHeight = self.bounds.size.width * image.size.height / image.size.width;
-    _imageView.frame = (CGRect){
+    _imageView = [[UIImageView alloc] initWithFrame:(CGRect){
         CGPointZero,
         self.bounds.size.width, imageViewHeight,
-    };
+    }];
     _imageView.image = image;
     _imageView.contentMode = UIViewContentModeScaleAspectFit;
-    [self addSubview:_imageView];
+    [_scrollView addSubview:_imageView];
     
     _imageView.center = self.center;
+    
+    _scrollView.contentSize = _imageView.bounds.size;
 
     id appDelegate = [UIApplication sharedApplication].delegate;
     UIWindow *window = [appDelegate window];
@@ -70,7 +82,7 @@
     CAAnimationGroup *showAnim = [CAAnimationGroup animation];
     showAnim.animations = @[ posAnim, scaleAnim ];
     showAnim.duration = 0.2f;
-    showAnim.removedOnCompletion = NO;
+    showAnim.removedOnCompletion = YES;
     showAnim.fillMode = kCAFillModeForwards;
     
     [_imageView.layer addAnimation:showAnim forKey:@"showAnimation"];
@@ -80,8 +92,12 @@
     if ([self.delegate respondsToSelector:@selector(lightbox:willCloseAtIndex:)]) {
         [self.delegate lightbox:self willCloseAtIndex:0];
     }
+    
+    [_imageView.layer removeAllAnimations];
     [_imageView removeFromSuperview];
+    [_scrollView removeFromSuperview];
     [self removeFromSuperview];
+    
     if ([self.delegate respondsToSelector:@selector(lightbox:didCloseAtIndex:)]) {
         [self.delegate lightbox:self didCloseAtIndex:0];
     }
@@ -132,10 +148,13 @@
 
 + (CAAnimationGroup *)animationForTranslationWithDelegate:(id)deletete tx:(CGFloat)tx ty:(CGFloat)ty factor:(CGFloat)factor angle:(CGFloat)angle {
     CABasicAnimation *animX = [CABasicAnimation animationWithKeyPath:@"transform.translation.x"];
+    animX.removedOnCompletion = YES;
     animX.toValue = @(tx * factor);
     CABasicAnimation *animY = [CABasicAnimation animationWithKeyPath:@"transform.translation.y"];
+    animY.removedOnCompletion = YES;
     animY.toValue = @(ty * factor);
     CABasicAnimation *animRotate = [CABasicAnimation animationWithKeyPath:@"transform.rotation"];
+    animRotate.removedOnCompletion = YES;
     animRotate.toValue = @(angle * factor);
     CAAnimationGroup *animGroup = [CAAnimationGroup animation];
     animGroup.delegate = deletete;
@@ -154,7 +173,6 @@
                        ? point.y - center.y
                        : center.y + point.y);
     CGPoint origin = CGPointMake(originX, originY);
-    //NSLog(@"%@", NSStringFromCGPoint(origin));
     return origin;
 }
 
@@ -188,10 +206,29 @@
 
 - (void)animationDidStop:(CAAnimation *)anim finished:(BOOL)flag {
     if (anim == [_imageView.layer animationForKey:@"translationAnimation"]) {
-        [_imageView.layer removeAllAnimations];
-        _imageView.transform = CGAffineTransformIdentity;
         [self hide];
     }
+}
+
+#pragma mark - UIScrollViewDelegate
+
+- (UIView *)viewForZoomingInScrollView:(UIScrollView *)scrollView {
+    return [[scrollView subviews] objectAtIndex:0];
+}
+
+- (void)scrollViewDidZoom:(UIScrollView *)scrollView {
+    CGRect imageViewFrame = _imageView.frame;
+    CGRect scrollViewBounds = _scrollView.bounds;
+    
+    imageViewFrame.origin = CGPointZero;
+    if (CGRectGetWidth(imageViewFrame) < CGRectGetWidth(scrollViewBounds)) {
+        imageViewFrame.origin.x = floor((CGRectGetWidth(scrollViewBounds) - CGRectGetWidth(imageViewFrame)) * 0.5f);
+    }
+    if (CGRectGetHeight(imageViewFrame) < CGRectGetHeight(scrollViewBounds)) {
+        imageViewFrame.origin.y = floor((CGRectGetHeight(scrollViewBounds) - CGRectGetHeight(imageViewFrame)) * 0.5f);
+    }
+    
+    _imageView.frame = imageViewFrame;
 }
 
 @end

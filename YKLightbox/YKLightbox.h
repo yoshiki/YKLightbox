@@ -18,7 +18,7 @@
 
 @end
 
-@interface YKLightbox : UIView
+@interface YKLightbox : UIView <UIScrollViewDelegate>
 
 @property (unsafe_unretained) id<YKLightboxDelegate> delegate;
 @property (nonatomic, strong) UIImage *image;

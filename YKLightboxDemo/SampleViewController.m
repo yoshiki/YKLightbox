@@ -37,17 +37,6 @@
     [super viewDidLoad];
     
     self.title = @"Lightbox Demo";
-    
-//    _showButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
-//    _showButton.titleLabel.font = [UIFont boldSystemFontOfSize:20.0f];
-//    [_showButton setTitle:@"Show" forState:UIControlStateNormal];
-//    [_showButton sizeToFit];
-//    [_showButton addTarget:self action:@selector(imageDidTap:) forControlEvents:UIControlEventTouchUpInside];
-//    [self.view addSubview:_showButton];
-//    
-//    CGRect showButtonFrame = _showButton.frame;
-//    showButtonFrame.origin = CGPointMake(9.0f, 9.0f);
-//    _showButton.frame = showButtonFrame;
 }
 
 #pragma mark - YKLightboxDelegate
@@ -86,6 +75,13 @@
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    
+    CGRect rect = [tableView rectForRowAtIndexPath:indexPath];
+    CGPoint originPoint = [tableView convertPoint:rect.origin toView:self.view.window];
+    NSInteger index = indexPath.row % 3 + 1;
+    UIImage *image = [UIImage imageNamed:[NSString stringWithFormat:@"image%02d", index]];
+    [_lightbox showWithImage:image originPoint:originPoint];
 }
 
 #pragma mark - SampleViewCellDelegate
