@@ -103,9 +103,16 @@
     }
 }
 
+- (BOOL)enableGesture {
+    return (_scrollView.contentSize.width <= _imageView.bounds.size.width
+            && _scrollView.contentSize.height <= _imageView.bounds.size.height);
+}
+
 #pragma mark - Private methods
 
 - (void)gestureAction:(UIGestureRecognizer *)gestureRecognizer {
+    if (!self.enableGesture) return;
+    
     CGPoint point = [gestureRecognizer locationInView:self];
     if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
         _startOrigin = point;
